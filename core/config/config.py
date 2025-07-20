@@ -210,7 +210,9 @@ class Config(object):
             dict: A LibFewShot setting dict.
         """
         config_dict = dict()
-        config_dict = self._update(config_dict, self.default_dict)
+        self.is_quickboost = self.file_dict['ensemble'] and self.file_dict["ensemble_kwargs"]["name"] == "quickboost" 
+        if not self.is_quickboost:
+            config_dict = self._update(config_dict, self.default_dict)
         config_dict = self._update(config_dict, self.file_dict)
         config_dict = self._update(config_dict, self.variable_dict)
         config_dict = self._update(config_dict, self.console_dict)
@@ -238,23 +240,10 @@ class Config(object):
         config_dict["resume"] = self.is_resume
         if self.is_resume:
             config_dict["resume_path"] = self.config_file[: -1 * len("/config.yaml")]
-        config_dict["tb_scale"] = (
-            float(config_dict["train_episode"]) / config_dict["test_episode"]
-        )
-
-        # for QuickBoost, it will use its pretrained module config as module config
-        self.is_quickboost = config_dict["ensemble"] and config_dict["ensemble_kwargs"]["name"] == "quickboost"
-        if self.is_quickboost:
-            module_config_file = os.path.join(
-                config_dict["ensemble_kwargs"]["other"]["pretrained_module_path"],
-                "config.yaml"
+        if not self.is_quickboost:
+            config_dict["tb_scale"] = (
+                float(config_dict["train_episode"]) / config_dict["test_episode"]
             )
-            module_config_dict = dict()
-            module_config_dict = self._load_config_files(module_config_file)
-            config_dict["classifier"] = module_config_dict["classifier"]
-            config_dict["backbone"] = module_config_dict["backbone"]
-            config_dict["optimizer"] = module_config_dict["optimizer"]
-            config_dict["lr_scheduler"] = module_config_dict["lr_scheduler"]
 
         return config_dict
 

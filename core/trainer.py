@@ -54,23 +54,25 @@ class Trainer(object):
         self.device, self.list_ids = self._init_device(rank, config)
         self.writer = self._init_writer(self.viz_path)
         self.train_meter, self.val_meter, self.test_meter = self._init_meter()
-        print(self.config)
-        if config["ensemble"]:
+        print(config)
+        if config["ensemble"] and config["ensemble_kwargs"]["name"] == "quickboost":
             self.ensemble_way, self.ensemble_name, self.need_train = self._init_ensemble(config)
-        self.model, self.model_type = self._init_model(config)
+        else:
+            self.model, self.model_type = self._init_model(config)
+            (
+                self.optimizer,
+                self.scheduler,
+                self.from_epoch,
+                self.best_val_acc,
+                self.best_test_acc,
+            ) = self._init_optim(config)
+            self.val_per_epoch = config["val_per_epoch"]
+
         (
             self.train_loader,
             self.val_loader,
             self.test_loader,
         ) = self._init_dataloader(config)
-        (
-            self.optimizer,
-            self.scheduler,
-            self.from_epoch,
-            self.best_val_acc,
-            self.best_test_acc,
-        ) = self._init_optim(config)
-        self.val_per_epoch = config["val_per_epoch"]
 
     def train_loop(self, rank):
         """
@@ -338,15 +340,8 @@ class Trainer(object):
         else:
             # you should ensure that data_root name contains its true name
             if self.config["ensemble"]:
-                if config["ensemble_kwargs"]["name"] == "quickboost":
-                    base_name = "{}({})".format(
-                        config["ensemble_kwargs"]["name"],
-                        config['ensemble_kwargs']['other']['pretrained_module_name'],
-                    )
-                else:
-                    base_name = config["ensemble_kwargs"]["name"]
                 base_dir = "{}-{}-{}-{}".format(
-                    base_name,
+                    config["ensemble_kwargs"]["name"],
                     config["data_root"].split("/")[-1],
                     config["way_num"],
                     config["shot_num"],
@@ -464,8 +459,6 @@ class Trainer(object):
         }
         model = get_instance(arch, "classifier", config, **model_kwargs)
 
-        if config["ensemble"] and self.ensemble_name == "quickboost":
-            print("The modle which QuickBoost ensembled with:")
         print(model)
         print("Trainable params in the model: {}".format(count_parameters(model)))
         # FIXME: May be inaccurate
@@ -586,8 +579,6 @@ class Trainer(object):
             optimizer, self.config
         )  # if config['warmup']==0, scheduler will be a normal lr_scheduler, jump into this class for details
 
-        if config["ensemble"] and self.ensemble_name == "quickboost":
-            print("The optimizer in the module which QuickBoost ensembled with:")
         print(optimizer)
         from_epoch = -1
         best_val_acc = float("-inf")
@@ -796,4 +787,3 @@ class Trainer(object):
         ensemble = get_instance(ways, "ensemble_kwargs", config, **ensemble_kwargs)
 
         return ensemble, name, need_train
-

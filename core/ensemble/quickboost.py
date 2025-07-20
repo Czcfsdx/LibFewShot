@@ -14,7 +14,6 @@ from sklearn.ensemble import RandomForestRegressor
 class FSL_FORSET():
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
-            print(f"key: {key} value: {value}")
             setattr(self, key, value)
         # TODO: Read fellow kwargs from config
         self.CLASS_SIZE = 64 # miniImagenet has 64 classes for training
@@ -51,7 +50,8 @@ class FSL_FORSET():
         print(f"QuickBoost FSL-FOREST model loaded form {file}")
 
     def test(self):
-        pass
+        print("QuickBoost start testing")
+        exit()
     
     def _generate_data_form_encoder(self):
         train_x = []

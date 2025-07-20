@@ -2,16 +2,13 @@ includes:
   - headers/data.yaml
   - headers/device.yaml
   - headers/misc.yaml
-  - headers/model.yaml
 
-device_ids: 0
-n_gpu: 1
 way_num: 5
 shot_num: 1
 query_num: 15
-episode_size: 2
-train_episode: 5000
-test_episode: 600
+test_way: ~ # use ~ -> test_* = *_num
+test_shot: ~
+test_query: ~
 
 workers: 0
 ensemble: True
