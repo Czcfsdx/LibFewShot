@@ -55,6 +55,8 @@ class Trainer(object):
         self.writer = self._init_writer(self.viz_path)
         self.train_meter, self.val_meter, self.test_meter = self._init_meter()
         print(self.config)
+        if config["ensemble"]:
+            self.ensemble_way, self.ensemble_name, self.need_train = self._init_ensemble(config)
         self.model, self.model_type = self._init_model(config)
         (
             self.train_loader,
@@ -74,6 +76,23 @@ class Trainer(object):
         """
         The normal train loop: train-val-test and save model when val-acc increases.
         """
+        if self.config["ensemble"]:
+            if self.need_train:
+                if not hasattr(self.ensemble_way, 'train') or not callable(getattr(self.ensemble_way, 'train')):
+                   raise NotImplementedError(f"The ensemble way {self.ensemble_name} does no implement method 'train'")
+                self.ensemble_way.train()
+                self.ensemble_way.save_model(self.checkpoints_path)
+            else:
+                print(f"The ensembel way {self.ensemble_name} doesn't need train")
+
+            if self.writer is not None:
+                self.writer.close()
+            if self.distribute:
+                dist.barrier()
+            elif self.distribute:
+                dist.barrier()
+            return
+
         experiment_begin = time()
         for epoch_idx in range(self.from_epoch + 1, self.config["epoch"]):
             if self.distribute and self.model_type == ModelType.FINETUNING:
@@ -318,13 +337,28 @@ class Trainer(object):
             viz_path = os.path.join(log_path, "tfboard_files")
         else:
             # you should ensure that data_root name contains its true name
-            base_dir = "{}-{}-{}-{}-{}".format(
-                config["classifier"]["name"],
-                config["data_root"].split("/")[-1],
-                config["backbone"]["name"],
-                config["way_num"],
-                config["shot_num"],
-            )
+            if self.config["ensemble"]:
+                if config["ensemble_kwargs"]["name"] == "quickboost":
+                    base_name = "{}({})".format(
+                        config["ensemble_kwargs"]["name"],
+                        config['ensemble_kwargs']['other']['pretrained_module_name'],
+                    )
+                else:
+                    base_name = config["ensemble_kwargs"]["name"]
+                base_dir = "{}-{}-{}-{}".format(
+                    base_name,
+                    config["data_root"].split("/")[-1],
+                    config["way_num"],
+                    config["shot_num"],
+                )
+            else:
+                base_dir = "{}-{}-{}-{}-{}".format(
+                    config["classifier"]["name"],
+                    config["data_root"].split("/")[-1],
+                    config["backbone"]["name"],
+                    config["way_num"],
+                    config["shot_num"],
+                )
             result_dir = (
                 base_dir
                 + "{}-{}".format(
@@ -347,13 +381,22 @@ class Trainer(object):
                 ) as fout:
                     fout.write(yaml.dump(config))
 
-        init_logger_config(
-            config["log_level"],
-            log_path,
-            config["classifier"]["name"],
-            config["backbone"]["name"],
-            rank=self.rank,
-        )
+        if self.config["ensemble"]:
+            init_logger_config(
+                config["log_level"],
+                log_path,
+                config["ensemble_kwargs"]["name"],
+                "",
+                rank=self.rank,
+                )
+        else:
+            init_logger_config(
+                config["log_level"],
+                log_path,
+                config["classifier"]["name"],
+                config["backbone"]["name"],
+                rank=self.rank,
+            )
 
         return result_path, log_path, checkpoints_path, viz_path
 
@@ -421,6 +464,8 @@ class Trainer(object):
         }
         model = get_instance(arch, "classifier", config, **model_kwargs)
 
+        if config["ensemble"] and self.ensemble_name == "quickboost":
+            print("The modle which QuickBoost ensembled with:")
         print(model)
         print("Trainable params in the model: {}".format(count_parameters(model)))
         # FIXME: May be inaccurate
@@ -540,6 +585,9 @@ class Trainer(object):
         scheduler = GradualWarmupScheduler(
             optimizer, self.config
         )  # if config['warmup']==0, scheduler will be a normal lr_scheduler, jump into this class for details
+
+        if config["ensemble"] and self.ensemble_name == "quickboost":
+            print("The optimizer in the module which QuickBoost ensembled with:")
         print(optimizer)
         from_epoch = -1
         best_val_acc = float("-inf")
@@ -729,3 +777,23 @@ class Trainer(object):
         res_str = str(time_consum) + "/" + str(time_remain + time_consum)
 
         return res_str
+
+    def _init_ensemble(self, config):
+        """
+        Init ensemble way from the config dict
+
+        Args:
+            config (dict): Parsed config file.
+
+        Returns:
+            tuple: A tuple of the ensemble way instance, ensemble way name (str) and if it need train (bool)
+        """
+        ensemble_kwargs = config["ensemble_kwargs"]["other"]
+        need_train = config["ensemble_kwargs"]["need_train"]
+        name = config["ensemble_kwargs"]["name"]
+
+        import core.ensemble as ways
+        ensemble = get_instance(ways, "ensemble_kwargs", config, **ensemble_kwargs)
+
+        return ensemble, name, need_train
+

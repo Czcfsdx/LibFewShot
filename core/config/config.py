@@ -242,6 +242,20 @@ class Config(object):
             float(config_dict["train_episode"]) / config_dict["test_episode"]
         )
 
+        # for QuickBoost, it will use its pretrained module config as module config
+        self.is_quickboost = config_dict["ensemble"] and config_dict["ensemble_kwargs"]["name"] == "quickboost"
+        if self.is_quickboost:
+            module_config_file = os.path.join(
+                config_dict["ensemble_kwargs"]["other"]["pretrained_module_path"],
+                "config.yaml"
+            )
+            module_config_dict = dict()
+            module_config_dict = self._load_config_files(module_config_file)
+            config_dict["classifier"] = module_config_dict["classifier"]
+            config_dict["backbone"] = module_config_dict["backbone"]
+            config_dict["optimizer"] = module_config_dict["optimizer"]
+            config_dict["lr_scheduler"] = module_config_dict["lr_scheduler"]
+
         return config_dict
 
     def is_port_in_use(self, host, port):

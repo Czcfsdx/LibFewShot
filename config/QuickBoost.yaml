@@ -1,0 +1,33 @@
+includes:
+  - headers/data.yaml
+  - headers/device.yaml
+  - headers/misc.yaml
+  - headers/model.yaml
+
+device_ids: 0
+n_gpu: 1
+way_num: 5
+shot_num: 1
+query_num: 15
+episode_size: 2
+train_episode: 5000
+test_episode: 600
+
+workers: 0
+ensemble: True
+ensemble_kwargs:
+  name: quickboost
+  need_train: True
+  other:
+    pretrained_encoder_path: './datasets/QuickBoost/embedding_resnet18_64classes.pkl'
+    pretrained_encoder_test_path: './datasets/QuickBoost/embedding_resnet18_64classes_test.pkl'
+    pretrained_module_name: ProtoNet-Conv64F
+    # pretrained_module_path should contain the result files of the libfewshot training
+    # as least contain: path/config.yaml, path/checkpoints/model_best.pth, path/checkpoints/emb_func_best.pth
+    pretrained_module_path: './results/ProtoNet--Conv64F-5-1-Jul-18-2025-17-47-36/'
+    # kwargs for sklearn random-forest
+    seed: 0
+    rf_kwargs:
+      n_estimators: 200
+      max_features: 20
+      random_state: 0

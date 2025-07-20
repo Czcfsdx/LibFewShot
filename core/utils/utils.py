@@ -29,7 +29,9 @@ def get_instance(module, name, config, **kwargs):
     Returns:
          Corresponding instance.
     """
-    if config[name]["kwargs"] is not None:
+    if config["ensemble"] and name == "ensemble_kwargs" and config[name]["other"] is not None:
+        kwargs.update(config[name]["other"])
+    elif config[name]["kwargs"] is not None:
         kwargs.update(config[name]["kwargs"])
 
     return getattr(module, config[name]["name"])(**kwargs)
