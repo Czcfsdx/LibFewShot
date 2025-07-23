@@ -20,17 +20,17 @@ ensemble_kwargs:
     seed: 0
 
     # if pretrain encoder path is null, use backbone to trian a encoder
-    pretrain_encoder_path: './datasets/QuickBoost/encoder_custom.pkl'
     # pretrain_encoder_path: null
-    backbone:
-      name: resnet18
-      kwargs:
-        fc_remove: True
+    # backbone:
+    #   name: resnet18
+    #   kwargs:
+    #     fc_remove: True
 
-    pretrain_embedding_path: './datasets/QuickBoost/embedding_resnet18_64classes.pkl'
-    pretrain_embedding_test_path: './datasets/QuickBoost/embedding_resnet18_64classes_test.pkl'
-    pretrain_name2idx_path: './datasets/QuickBoost/name2idx.json'
-    pretrain_name2idx_test_path: './datasets/QuickBoost/name2idx_test.json'
+    pretrain_encoder_path: './QuickBoost/encoder_custom.pkl'
+    pretrain_embedding_path: './QuickBoost/embedding_resnet18_64classes.pkl'
+    pretrain_embedding_test_path: './QuickBoost/embedding_resnet18_64classes_test.pkl'
+    pretrain_name2idx_path: './QuickBoost/name2idx.json'
+    pretrain_name2idx_test_path: './QuickBoost/name2idx_test.json'
     # pretrain_model_path should contain the result files of the libfewshot training
     # as least contains: path/config.yaml, path/checkpoints/model_best.pth, path/checkpoints/emb_func_best.pth
     pretrain_model_path: './results/RelationNet--Conv64F-for-test/'

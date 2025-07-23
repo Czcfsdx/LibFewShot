@@ -17,6 +17,7 @@ class FSL_FORSET():
             # print(f"key: {key}, value: {value}")
             setattr(self, key, value)
         # TODO: Read fellow kwargs from config
+        # This is about dataset and embedding
         self.CLASS_SIZE = 64 # miniImagenet has 64 classes for training
         self.sample_size = 50
         self.iterations = 2
@@ -62,7 +63,6 @@ class FSL_FORSET():
 
         episode_size = query_targets.size(0)
         output_list = []
-        # TODO: testing ensemble with other model
         if model_outputs is not None:
             model_output_chunks = torch.chunk(model_outputs, chunks = episode_size, dim = 0)
 

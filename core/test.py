@@ -69,10 +69,10 @@ class Test(object):
             self.quickboost = True
             self.ensemble_way.load_model(os.path.join(self.result_path, "checkpoints"))
             if self.ensemble_way.test_standalone:
-                print("QuickBoost start testing standalone")
                 self.quickboost_test_standalone = True
+                print("QuickBoost start testing standalone ...")
             else:
-                print(f"QuickBoost start testing with {self.ensemble_way.pretrain_model_name}")
+                print(f"QuickBoost start testing with {self.ensemble_way.pretrain_model_name} ...")
 
         total_accuracy = 0.0
         total_h = np.zeros(self.config["test_epoch"])

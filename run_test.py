@@ -12,10 +12,14 @@ from core import Test
 PATH = "./results/DN4-miniImageNet--ravi-Conv64F-5-1-Dec-01-2021-06-05-20"
 VAR_DICT = {
     "test_epoch": 5,
-    "device_ids": "4,5",
-    "n_gpu": 2,
+    "device_ids": "0",
+    "workers": 8,
+    "n_gpu": 1,
     "test_episode": 600,
-    "episode_size": 2,
+    # "episode_size": 1,
+    # "test_query": 1,
+    "shot_num": 1,
+    "test_shot": 1,
 }
 
 
@@ -31,6 +35,7 @@ if __name__ == "__main__":
             config["ensemble_kwargs"]["other"]["pretrain_model_path"],
             "config.yaml"
         ), config).get_config_dict()
+        # config["ensemble_kwargs"]["other"]["test_standalone"] = False
 
     if config["n_gpu"] > 1:
         os.environ["CUDA_VISIBLE_DEVICES"] = config["device_ids"]
