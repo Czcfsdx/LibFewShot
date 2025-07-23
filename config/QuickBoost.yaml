@@ -32,11 +32,11 @@ ensemble_kwargs:
     pretrain_name2idx_path: './datasets/QuickBoost/name2idx.json'
     pretrain_name2idx_test_path: './datasets/QuickBoost/name2idx_test.json'
     # pretrain_model_path should contain the result files of the libfewshot training
-    # as least contain: path/config.yaml, path/checkpoints/model_best.pth, path/checkpoints/emb_func_best.pth
+    # as least contains: path/config.yaml, path/checkpoints/model_best.pth, path/checkpoints/emb_func_best.pth
     pretrain_model_path: './results/RelationNet--Conv64F-for-test/'
     pretrain_model_name: RelationNet-Conv64F
 
-    rf_kwargs:  # kwargs for sklearn random-forest
+    rf_kwargs: # kwargs for sklearn random-forest
       n_estimators: 200
       max_features: 20
       random_state: 0

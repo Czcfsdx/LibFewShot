@@ -54,11 +54,7 @@ class FSL_FORSET():
         with open(self.pretrain_name2idx_test_path, 'r') as f:
                 self.name2idx_test = json.load(f)
 
-    def test(self, batch, model_output = None):
-        print(f"batch len: {len(batch)}")
-        if len(batch) < 10:
-            print(f"batch: {batch}")
-        exit()
+    def test(self, batch, model_outputs = None):
         image, global_target, image_names = batch
         image = image.to(self.device)
 
@@ -66,15 +62,23 @@ class FSL_FORSET():
 
         episode_size = query_targets.size(0)
         output_list = []
+        # TODO: testing ensemble with other model
+        if model_outputs is not None:
+            model_output_chunks = torch.chunk(model_outputs, chunks = episode_size, dim = 0)
+
         for i in range(episode_size):
-            sim_forest_rels = self._get_batch_rels(support_names[i], query_names[i], self.test_shot).to(self.device).reshape(-1, self.test_way)
-            output_list.append(sim_forest_rels)
+            forest_output = self._get_batch_rels(support_names[i], query_names[i], self.test_shot).to(self.device).reshape(-1, self.test_way)
+            final_output = self._minmax_normalize(forest_output, dim = 1)
+
+            if model_outputs is not None:
+                model_output = self._minmax_normalize(model_output_chunks[i], dim = 1)
+
+                final_output = torch.stack([model_output, final_output], dim=2)
+                final_output = torch.mean(final_output, dim=2)
+
+            output_list.append(final_output)
+            
         output = torch.cat(output_list, dim = 0)
-
-        if model_output is not None:
-            # TODO: testing ensemble with other model
-            pass
-
         acc = accuracy(output, query_targets.reshape(-1))
         return output, acc
 
@@ -233,7 +237,11 @@ class FSL_FORSET():
 
         return support_images, query_images, support_target, query_target, support_names, query_names
 
-        # return support_features, query_features, support_target, query_target
+    def _minmax_normalize(self, x, dim, eps=1e-8):
+        """Min-Max 归一化函数"""
+        min_val = x.min(dim=dim, keepdim=True)[0]
+        max_val = x.max(dim=dim, keepdim=True)[0]
+        return (x - min_val) / (max_val - min_val + eps)
 
 def quickboost(**kwargs):
     """Constructs a FSL-FOREST model."""

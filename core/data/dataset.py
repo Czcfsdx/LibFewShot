@@ -184,5 +184,5 @@ class GeneralDataset(Dataset):
         # print(f"data: {data}")
         # print(f"label: {label}")
 
-        # WARN: Maybe don't need to return image_name
+        # HACK: Maybe don't need to return image_name
         return data, label, image_name

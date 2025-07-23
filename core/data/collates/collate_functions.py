@@ -169,7 +169,7 @@ class FewShotAugCollateFunction(object):
                 )
             )
 
-            # WARN: Maybe don't need to return names
+            # HACK: Maybe don't need to return names
             # WARN: names don't support augmentations
             return images, global_labels, names
             # images.shape = [e*w*(q+s) x c x h x w],  global_labels.shape = [e x w x (q+s)]
