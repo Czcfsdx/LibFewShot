@@ -26,6 +26,9 @@ class AbstractModel(nn.Module):
         pass
 
     def forward(self, x):
+        # HACK: don't pass x[3] -> images_names to model, pass names only to quickboost
+        if isinstance(x, (list, tuple)) and len(x) > 2:
+            x = x[:2]
         if self.training:
             return self.set_forward_loss(x)
         else:

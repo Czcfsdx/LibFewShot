@@ -116,10 +116,10 @@ class FewShotAugCollateFunction(object):
             batch (list of tuple): A batch returned by a few-shot dataset.
 
         Returns:
-            tuple: a tuple of (images, gt_labels).
+            tuple: a tuple of (images, gt_labels, names).
         """
         try:
-            images, labels = zip(
+            images, labels, names = zip(
                 *batch
             )  # images = [img_label_tuple[0] for img_label_tuple in batch]  # 111111222222 (5s1q for example)
             images_split_by_label = [
@@ -169,7 +169,9 @@ class FewShotAugCollateFunction(object):
                 )
             )
 
-            return images, global_labels
+            # WARN: Maybe don't need to return names
+            # WARN: names don't support augmentations
+            return images, global_labels, names
             # images.shape = [e*w*(q+s) x c x h x w],  global_labels.shape = [e x w x (q+s)]
         except TypeError:
             raise TypeError(

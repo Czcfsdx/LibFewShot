@@ -169,7 +169,7 @@ class GeneralDataset(Dataset):
             idx (int): The __getitem__ id.
 
         Returns:
-            tuple: A tuple of (image, label)
+            tuple: A tuple of (image, label, image_name)
         """
         if self.use_memory:
             data = self.data_list[idx]
@@ -181,5 +181,8 @@ class GeneralDataset(Dataset):
         if self.trfms is not None:
             data = self.trfms(data)
         label = self.label_list[idx]
+        # print(f"data: {data}")
+        # print(f"label: {label}")
 
-        return data, label
+        # WARN: Maybe don't need to return image_name
+        return data, label, image_name

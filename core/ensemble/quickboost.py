@@ -55,17 +55,38 @@ class FSL_FORSET():
                 self.name2idx_test = json.load(f)
 
     def test(self, batch, model_output = None):
+        print(f"batch len: {len(batch)}")
+        if len(batch) < 10:
+            print(f"batch: {batch}")
         exit()
-    
+        image, global_target, image_names = batch
+        image = image.to(self.device)
+
+        support_images, query_images, support_targets, query_targets, support_names, query_names = self.split_by_episode(image, image_names, mode = 2)
+
+        episode_size = query_targets.size(0)
+        output_list = []
+        for i in range(episode_size):
+            sim_forest_rels = self._get_batch_rels(support_names[i], query_names[i], self.test_shot).to(self.device).reshape(-1, self.test_way)
+            output_list.append(sim_forest_rels)
+        output = torch.cat(output_list, dim = 0)
+
+        if model_output is not None:
+            # TODO: testing ensemble with other model
+            pass
+
+        acc = accuracy(output, query_targets.reshape(-1))
+        return output, acc
+
     def _generate_data_form_encoder(self):
         train_x = []
         train_y = []
 
-        print("Generating QuickBoost RF data from pretrained encoder ...")
+        print("Generating QuickBoost RF data from pretrain embedding ...")
         random.seed(self.seed)
-        with open(self.pretrained_encoder_path, 'rb') as f:
+        with open(self.pretrain_embedding_path, 'rb') as f:
             self.embeddings = pickle.load(f)
-        with open(self.pretrained_encoder_test_path, 'rb') as f:
+        with open(self.pretrain_embedding_test_path, 'rb') as f:
             self.embeddings_test = pickle.load(f)
             self.embeddings_test = self.embeddings_test.astype(np.float16)
         train_x, train_y = self._generate_data(0, self.CLASS_SIZE, self.sample_size, self.iterations, self.IMGS_PER_CLASS, self.EMBEDDING_SIZE)
@@ -138,17 +159,81 @@ class FSL_FORSET():
         spt_embs.clear()
 
         for qry_name in qry_names:
-            tokens = qry_name.split('/')
-            qry_name = tokens[-1]
             qry_emb = self.embeddings_test[self.name2idx_test[qry_name]]
             qry_emb = qry_emb / np.linalg.norm(qry_emb)
-            for classI in range(5):
+            for classI in range(self.test_way):
                 diff = (classpt_embs[classI] - qry_emb) ** 2
                 relations_rf.append(diff)  
-        relations_rf = np.stack(relations_rf).reshape(-1, 512)
+        relations_rf = np.stack(relations_rf).reshape(-1, self.EMBEDDING_SIZE)
         preds = self.classifier.predict(relations_rf)
         preds = preds.reshape(len(qry_names), -1)
-        return from_numpy(preds)
+        return torch.from_numpy(preds)
+
+    def split_by_episode(self, images, names, mode = 1):
+        # TODO: other models don't need to manual set this, try to find why
+        if mode == 2: # for test
+            shot_num = self.test_shot
+            way_num = self.test_way
+            query_num = self.test_query
+        else:
+            shot_num = self.shot_num
+            way_num = self.way_num
+            query_num = self.query_num
+
+        episode_size = images.size(0) // (
+            way_num * (shot_num + query_num)
+        )
+
+        local_targets = (
+            torch.arange(way_num, dtype=torch.long)
+            .view(1, -1, 1)
+            .repeat(episode_size, 1, shot_num + query_num)
+            .view(-1)
+        )
+        local_labels = (
+            local_targets
+            .to(self.device)
+            .contiguous()
+            .view(episode_size, way_num, shot_num + query_num)
+        )
+
+        _, c, h, w = images.shape
+        images = images.to(self.device).contiguous().view(
+            episode_size,
+            way_num,
+            shot_num + query_num,
+            c,
+            h,
+            w,
+        )
+        support_images = images[:, :, : shot_num, :, ...].contiguous().view(
+            episode_size,
+            way_num * shot_num,
+            c,
+            h,
+            w,
+        )
+        query_images = images[:, :, shot_num :, :, ...].contiguous().view(
+            episode_size,
+            way_num * query_num,
+            c,
+            h,
+            w,
+        )
+        support_target = local_labels[:, :, : shot_num].reshape(
+            episode_size, way_num * shot_num
+        )
+        query_target = local_labels[:, :, shot_num :].reshape(
+            episode_size, way_num * query_num
+        )
+
+        names = np.array(names).reshape(episode_size, way_num, shot_num + query_num)
+        support_names = names[:, :, : shot_num].reshape(episode_size, way_num * shot_num)
+        query_names = names[:, :, shot_num :].reshape(episode_size, way_num * query_num)
+
+        return support_images, query_images, support_target, query_target, support_names, query_names
+
+        # return support_features, query_features, support_target, query_target
 
 def quickboost(**kwargs):
     """Constructs a FSL-FOREST model."""
