@@ -60,6 +60,11 @@ class Trainer(object):
         else:
             self.model, self.model_type = self._init_model(config)
             (
+                self.train_loader,
+                self.val_loader,
+                self.test_loader,
+            ) = self._init_dataloader(config)
+            (
                 self.optimizer,
                 self.scheduler,
                 self.from_epoch,
@@ -67,12 +72,6 @@ class Trainer(object):
                 self.best_test_acc,
             ) = self._init_optim(config)
             self.val_per_epoch = config["val_per_epoch"]
-
-        (
-            self.train_loader,
-            self.val_loader,
-            self.test_loader,
-        ) = self._init_dataloader(config)
 
     def train_loop(self, rank):
         """
@@ -354,6 +353,7 @@ class Trainer(object):
                     config["way_num"],
                     config["shot_num"],
                 )
+
             result_dir = (
                 base_dir
                 + "{}-{}".format(
@@ -480,7 +480,7 @@ class Trainer(object):
                 self.config["resume_path"], "checkpoints", "model_last.pth"
             )
             print("load the resume model checkpoints dict from {}.".format(resume_path))
-            state_dict = torch.load(resume_path, map_location="cpu")["model"]
+            state_dict = torch.load(resume_path, map_location="cpu", weights_only=False)["model"]
             msg = model.load_state_dict(state_dict, strict=False)
 
             if len(msg.missing_keys) != 0:
@@ -592,7 +592,7 @@ class Trainer(object):
                     resume_path
                 )
             )
-            all_state_dict = torch.load(resume_path, map_location="cpu")
+            all_state_dict = torch.load(resume_path, map_location="cpu", weights_only=False)
             state_dict = all_state_dict["optimizer"]
             optimizer.load_state_dict(state_dict)
             state_dict = all_state_dict["lr_scheduler"]
@@ -779,9 +779,22 @@ class Trainer(object):
         Returns:
             tuple: A tuple of the ensemble way instance, ensemble way name (str) and if it need train (bool)
         """
+        
         ensemble_kwargs = config["ensemble_kwargs"]["other"]
-        need_train = config["ensemble_kwargs"]["need_train"]
+        ensemble_kwargs["device"]= self.device
+        ensemble_kwargs["way_num"]= config["way_num"]
+        ensemble_kwargs["shot_num"]= config["shot_num"] * config["augment_times"]
+        ensemble_kwargs["query_num"]= config["query_num"]
+        ensemble_kwargs["test_way"]= config["test_way"]
+        ensemble_kwargs["test_shot"]= config["test_shot"] * config["augment_times"]
+        ensemble_kwargs["test_query"]= config["test_query"]
         name = config["ensemble_kwargs"]["name"]
+        need_train = config["ensemble_kwargs"]["need_train"]
+    # if ensemble_kwargs["pretrain_encoder_path"] is None:
+        #     ensemble_kwargs["emb_func"] = get_instance(arch, "backbone", ensemble_kwargs)
+        # else:
+        #     ensemble_kwargs["emb_func"] = get_instance(arch, "backbone", ensemble_kwargs)
+        #     ensemble_kwargs["emb_dict"] = os.path.join(ensemble_kwargs["pretrain_model_path"], "checkpoints", "emb_func_best.pth")
 
         import core.ensemble as ways
         ensemble = get_instance(ways, "ensemble_kwargs", config, **ensemble_kwargs)

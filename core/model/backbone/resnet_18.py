@@ -99,6 +99,7 @@ class ResNet(nn.Module):
         avg_pool=True,
         is_flatten=True,
         last_block_stride=2,
+        fc_remove=False,
     ):
         super(ResNet, self).__init__()
 
@@ -114,6 +115,8 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=last_block_stride)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        if fc_remove:
+            self.fc = nn.Identity()
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):

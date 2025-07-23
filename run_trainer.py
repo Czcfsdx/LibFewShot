@@ -15,7 +15,10 @@ def main(rank, config):
 
 
 if __name__ == "__main__":
-    config = Config("./config/test_install.yaml").get_config_dict()
+    # config = Config("./config/relation.yaml").get_config_dict()
+    config = Config("./config/QuickBoost.yaml").get_config_dict()
+    # config = Config("./reproduce/RelationNet/RelationNet-miniImageNet--ravi-Conv64F-5-1-Table2.yaml", VAR_DICT).get_config_dict()
+
 
     if config["n_gpu"] > 1:
         os.environ["CUDA_VISIBLE_DEVICES"] = config["device_ids"]

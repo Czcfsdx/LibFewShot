@@ -44,13 +44,36 @@ class Test(object):
         self.writer = self._init_writer(self.viz_path)
         self.test_meter = self._init_meter()
         print(config)
-        self.model, self.model_type = self._init_model(config)
+        if config["ensemble"] and config["ensemble_kwargs"]["name"] == "quickboost":
+            self.ensemble_way, self.ensemble_name = self._init_ensemble(config)
+            self.state_dict_path = os.path.join(
+                config["ensemble_kwargs"]["other"]["pretrain_model_path"],
+                "checkpoints",
+                "model_best.pth"
+            )
+            self.model, self.model_type = self._init_model(config)
+            self.ensemble_way.emb_func = self.model.emb_func
+            # self.ensemble_way.split_by_episode = self.model.split_by_episode
+        else:
+            self.model, self.model_type = self._init_model(config)
         self.test_loader = self._init_dataloader(config)
 
     def test_loop(self):
         """
         The normal test loop: test and cal the 0.95 mean_confidence_interval.
         """
+
+        self.quickboost = False
+        self.quickboost_test_standalone = False
+        if self.config["ensemble"] and self.ensemble_name == "quickboost":
+            self.quickboost = True
+            self.ensemble_way.load_model(os.path.join(self.result_path, "checkpoints"))
+            if self.ensemble_way.test_standalone:
+                print("QuickBoost start testing standalone")
+                self.quickboost_test_standalone = True
+            else:
+                print(f"QuickBoost start testing with {self.ensemble_way.pretrain_model_name}")
+
         total_accuracy = 0.0
         total_h = np.zeros(self.config["test_epoch"])
         total_accuracy_vector = []
@@ -85,19 +108,23 @@ class Test(object):
         Returns:
             float: Acc.
         """
-        # switch to evaluate mode
-        self.model.eval()
-        if self.distribute:
-            self.model.module.reverse_setting_info()
-        else:
-            self.model.reverse_setting_info()
+        if not self.quickboost_test_standalone:
+            # switch to evaluate mode
+            self.model.eval()
+            if self.distribute:
+                self.model.module.reverse_setting_info()
+            else:
+                self.model.reverse_setting_info()
         meter = self.test_meter
         meter.reset()
         episode_size = self.config["episode_size"]
         accuracies = []
 
         end = time()
-        enable_grad = self.model_type != ModelType.METRIC
+        if self.quickboost_test_standalone:
+            enable_grad = False
+        else:
+            enable_grad = self.model_type != ModelType.METRIC
         log_scale = self.config["episode_size"]
         with torch.set_grad_enabled(enable_grad):
             loader = self.test_loader
@@ -117,7 +144,12 @@ class Test(object):
 
                 # calculate the output
                 calc_begin = time()
-                output, acc = self.model([elem for each_batch in batch for elem in each_batch])
+                if self.quickboost_test_standalone:
+                    output, acc = self.ensemble_way.test([elem for each_batch in batch for elem in each_batch])
+                else:
+                    output, acc = self.model([elem for each_batch in batch for elem in each_batch])
+                    if self.quickboost:
+                        output, acc = self.ensemble_way.test([elem for each_batch in batch for elem in each_batch], output)
                 accuracies.append(acc)
                 meter.update("calc_time", time() - calc_begin)
 
@@ -152,11 +184,11 @@ class Test(object):
                     print(info_str)
                 end = time()
 
-
-        if self.distribute:
-            self.model.module.reverse_setting_info()
-        else:
-            self.model.reverse_setting_info()
+        if not self.quickboost_test_standalone:
+            if self.distribute:
+                self.model.module.reverse_setting_info()
+            else:
+                self.model.reverse_setting_info()
         return meter.avg("acc"), accuracies
 
     def _init_files(self, config):
@@ -171,6 +203,14 @@ class Test(object):
         """
         if self.result_path is not None:
             result_path = self.result_path
+        elif self.config["ensemble"]:
+            result_dir = "{}-{}-{}-{}".format(
+                config["ensemble_kwargs"]["name"],
+                config["data_root"].split("/")[-1],
+                config["way_num"],
+                config["shot_num"],
+            )
+            result_path = os.path.join(config["result_root"], result_dir)
         else:
             result_dir = "{}-{}-{}-{}-{}".format(
                 config["classifier"]["name"],
@@ -184,16 +224,25 @@ class Test(object):
         log_path = os.path.join(result_path, "log_files")
         viz_path = os.path.join(log_path, "tfboard_files")
 
-        init_logger_config(
-            config["log_level"],
-            log_path,
-            config["classifier"]["name"],
-            config["backbone"]["name"],
-            is_train=False,
-            rank=self.rank,
-        )
+        if self.config["ensemble"]:
+            init_logger_config(
+                config["log_level"],
+                log_path,
+                config["ensemble_kwargs"]["name"],
+                "",
+                rank=self.rank,
+                )
+        else:
+            init_logger_config(
+                config["log_level"],
+                log_path,
+                config["classifier"]["name"],
+                config["backbone"]["name"],
+                rank=self.rank,
+            )
 
         state_dict_path = os.path.join(result_path, "checkpoints", "model_best.pth")
+
         if self.rank == 0:
             create_dirs([result_path, log_path, viz_path])
             
@@ -254,11 +303,11 @@ class Test(object):
         )
 
         # check: episode_num % episode_size == 0
-        assert (
-            self.config["train_episode"] % self.config["episode_size"] == 0
-        ), "train_episode {} % episode_size  {} != 0".format(
-            self.config["train_episode"], self.config["episode_size"]
-        )
+        # assert (
+        #     self.config["train_episode"] % self.config["episode_size"] == 0
+        # ), "train_episode {} % episode_size  {} != 0".format(
+        #     self.config["train_episode"], self.config["episode_size"]
+        # )
 
         assert (
             self.config["test_episode"] % self.config["episode_size"] == 0
@@ -375,3 +424,34 @@ class Test(object):
             return writer
         else:
             return None
+
+    def _init_ensemble(self, config):
+        """
+        Init ensemble way from the config dict
+
+        Args:
+            config (dict): Parsed config file.
+
+        Returns:
+            tuple: A tuple of the ensemble way instance and ensemble way name (str)
+        """
+        ensemble_kwargs = config["ensemble_kwargs"]["other"]
+        ensemble_kwargs["device"]= self.device
+        ensemble_kwargs["way_num"]= config["way_num"]
+        ensemble_kwargs["shot_num"]= config["shot_num"] * config["augment_times"]
+        ensemble_kwargs["query_num"]= config["query_num"]
+        ensemble_kwargs["test_way"]= config["test_way"]
+        ensemble_kwargs["test_shot"]= config["test_shot"] * config["augment_times"]
+        ensemble_kwargs["test_query"]= config["test_query"]
+        name = config["ensemble_kwargs"]["name"]
+    # if ensemble_kwargs["pretrain_encoder_path"] is None:
+        #     ensemble_kwargs["emb_func"] = get_instance(arch, "backbone", ensemble_kwargs)
+        # else:
+        #     ensemble_kwargs["emb_func"] = get_instance(arch, "backbone", ensemble_kwargs)
+        #     ensemble_kwargs["emb_dict"] = os.path.join(ensemble_kwargs["pretrain_model_path"], "checkpoints", "emb_func_best.pth")
+
+
+        import core.ensemble as ways
+        ensemble = get_instance(ways, "ensemble_kwargs", config, **ensemble_kwargs)
+
+        return ensemble, name

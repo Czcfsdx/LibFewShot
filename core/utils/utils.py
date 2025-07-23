@@ -29,7 +29,7 @@ def get_instance(module, name, config, **kwargs):
     Returns:
          Corresponding instance.
     """
-    if config["ensemble"] and name == "ensemble_kwargs" and config[name]["other"] is not None:
+    if "ensemble" in config and config["ensemble"] and name == "ensemble_kwargs" and config[name]["other"] is not None:
         kwargs.update(config[name]["other"])
     elif config[name]["kwargs"] is not None:
         kwargs.update(config[name]["kwargs"])
@@ -58,10 +58,14 @@ class AverageMeter(object):
         if self.writer is not None:
             tag = "{}/{}".format(self.name, key)
             self.writer.add_scalar(tag, value)
-        self._data.last_value[key] = value
-        self._data.total[key] += value * n
-        self._data.counts[key] += n
-        self._data.average[key] = self._data.total[key] / self._data.counts[key]
+        # self._data.last_value[key] = value
+        # self._data.total[key] += value * n
+        # self._data.counts[key] += n
+        # self._data.average[key] = self._data.total[key] / self._data.counts[key]
+        self._data.loc[key, "last_value"] = value
+        self._data.loc[key, "total"] += value * n
+        self._data.loc[key, "counts"] += n
+        self._data.loc[key, "average"] = self._data.total[key] / self._data.counts[key]
 
     def avg(self, key):
         return self._data.average[key]

@@ -26,6 +26,11 @@ def main(rank, config):
 
 if __name__ == "__main__":
     config = Config(os.path.join(PATH, "config.yaml"), VAR_DICT).get_config_dict()
+    if config["ensemble"] and config["ensemble_kwargs"]["name"] == "quickboost":
+        config = Config(os.path.join(
+            config["ensemble_kwargs"]["other"]["pretrain_model_path"],
+            "config.yaml"
+        ), config).get_config_dict()
 
     if config["n_gpu"] > 1:
         os.environ["CUDA_VISIBLE_DEVICES"] = config["device_ids"]

@@ -5,15 +5,16 @@ import json
 import time
 import os
 import numpy as np
-# import torch
+import torch
 # from numpy.linalg import norm
-from torch import from_numpy
 import torch.nn.functional as F
 from sklearn.ensemble import RandomForestRegressor
+from core.utils import accuracy
 
 class FSL_FORSET():
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
+            # print(f"key: {key}, value: {value}")
             setattr(self, key, value)
         # TODO: Read fellow kwargs from config
         self.CLASS_SIZE = 64 # miniImagenet has 64 classes for training
@@ -26,9 +27,6 @@ class FSL_FORSET():
         train_x, train_y = self._generate_data_form_encoder()
         train_x = train_x.astype(np.float16)
         train_y = train_y.astype(np.float16)
-
-        # with open(config.data_dir + 'name2idx_test.json', 'r') as f:
-        #     self.name2idx_test = json.load(f)
 
         print('start RF training')
         start = time.time()
@@ -45,12 +43,18 @@ class FSL_FORSET():
 
     def load_model(self, path):
         file = os.path.join(path, 'model_best.pkl')
+        print(f"Loading FSL-FOREST model form {file} ...")
         with open(file, 'rb') as f:
             self.classifier = pickle.load(f)
-        print(f"QuickBoost FSL-FOREST model loaded form {file}")
 
-    def test(self):
-        print("QuickBoost start testing")
+        print("Loading pretrain embedding and name2idx.json ...")
+        with open(self.pretrain_embedding_test_path, 'rb') as f:
+            self.embeddings_test = pickle.load(f)
+            self.embeddings_test = self.embeddings_test.astype(np.float16)
+        with open(self.pretrain_name2idx_test_path, 'r') as f:
+                self.name2idx_test = json.load(f)
+
+    def test(self, batch, model_output = None):
         exit()
     
     def _generate_data_form_encoder(self):
@@ -101,7 +105,6 @@ class FSL_FORSET():
                 # get different class images' indices
                 diff_class_idxs = random.sample(diff_class_idxs, k = sample_size)
                 diff_img_embs = self.embeddings[diff_class_idxs].squeeze()
-                cosine_sims = []
                 for diff_i in range(len(diff_img_embs)):
                     diff_img_embs[diff_i] =\
                         diff_img_embs[diff_i] / np.linalg.norm(diff_img_embs[diff_i]) 
@@ -118,7 +121,6 @@ class FSL_FORSET():
     
     def _get_batch_rels(self, support_names, qry_names, shot_size = 1):
         relations_rf = []
-        relations = []
         spt_embs = [] # support embeddings
         classpt_embs = []
         for i, support_name in enumerate(support_names):
@@ -127,8 +129,6 @@ class FSL_FORSET():
                 avg_spt_emb = avg_spt_emb / np.linalg.norm(avg_spt_emb)
                 classpt_embs.append(avg_spt_emb)
                 spt_embs.clear()
-            tokens = support_name.split('/')
-            support_name = tokens[-1]
             spt_embedding = self.embeddings_test[self.name2idx_test[support_name]]
             spt_embedding = spt_embedding / np.linalg.norm(spt_embedding)
             spt_embs.append(spt_embedding)

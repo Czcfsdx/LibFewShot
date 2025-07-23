@@ -16,15 +16,27 @@ ensemble_kwargs:
   name: quickboost
   need_train: True
   other:
-    pretrained_encoder_path: './datasets/QuickBoost/embedding_resnet18_64classes.pkl'
-    pretrained_encoder_test_path: './datasets/QuickBoost/embedding_resnet18_64classes_test.pkl'
-    pretrained_module_name: ProtoNet-Conv64F
-    # pretrained_module_path should contain the result files of the libfewshot training
-    # as least contain: path/config.yaml, path/checkpoints/model_best.pth, path/checkpoints/emb_func_best.pth
-    pretrained_module_path: './results/ProtoNet--Conv64F-5-1-Jul-18-2025-17-47-36/'
-    # kwargs for sklearn random-forest
+    test_standalone: True # test without ensembleing with pretrained modle or not
     seed: 0
-    rf_kwargs:
+
+    # if pretrain encoder path is null, use backbone to trian a encoder
+    pretrain_encoder_path: './datasets/QuickBoost/encoder_custom.pkl'
+    # pretrain_encoder_path: null
+    backbone:
+      name: resnet18
+      kwargs:
+        fc_remove: True
+
+    pretrain_embedding_path: './datasets/QuickBoost/embedding_resnet18_64classes.pkl'
+    pretrain_embedding_test_path: './datasets/QuickBoost/embedding_resnet18_64classes_test.pkl'
+    pretrain_name2idx_path: './datasets/QuickBoost/name2idx.json'
+    pretrain_name2idx_test_path: './datasets/QuickBoost/name2idx_test.json'
+    # pretrain_model_path should contain the result files of the libfewshot training
+    # as least contain: path/config.yaml, path/checkpoints/model_best.pth, path/checkpoints/emb_func_best.pth
+    pretrain_model_path: './results/RelationNet--Conv64F-for-test/'
+    pretrain_model_name: RelationNet-Conv64F
+
+    rf_kwargs:  # kwargs for sklearn random-forest
       n_estimators: 200
       max_features: 20
       random_state: 0
