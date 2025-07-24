@@ -128,7 +128,7 @@ class FSL_FORSET():
                 y_list.append(labels)
 
                 # get different class images' indices
-                diff_class_idxs = random.sample(diff_class_idxs, k = sample_size)
+                diff_class_idxs = random.sample(list(diff_class_idxs), k = sample_size)
                 diff_img_embs = self.embeddings[diff_class_idxs].squeeze()
                 for diff_i in range(len(diff_img_embs)):
                     diff_img_embs[diff_i] =\
