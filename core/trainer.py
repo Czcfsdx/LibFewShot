@@ -339,11 +339,9 @@ class Trainer(object):
         else:
             # you should ensure that data_root name contains its true name
             if self.config["ensemble"]:
-                base_dir = "{}-{}-{}-{}".format(
+                base_dir = "{}-{}".format(
                     config["ensemble_kwargs"]["name"],
                     config["data_root"].split("/")[-1],
-                    config["way_num"],
-                    config["shot_num"],
                 )
             else:
                 base_dir = "{}-{}-{}-{}-{}".format(

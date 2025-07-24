@@ -10,7 +10,7 @@ test_way: ~ # use ~ -> test_* = *_num
 test_shot: ~
 test_query: ~
 
-workers: 0
+workers: 8
 ensemble: True
 ensemble_kwargs:
   name: quickboost

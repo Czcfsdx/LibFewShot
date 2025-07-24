@@ -231,6 +231,7 @@ class Test(object):
                 config["ensemble_kwargs"]["name"],
                 "",
                 rank=self.rank,
+                is_train=False
                 )
         else:
             init_logger_config(
@@ -239,6 +240,7 @@ class Test(object):
                 config["classifier"]["name"],
                 config["backbone"]["name"],
                 rank=self.rank,
+                is_train=False
             )
 
         state_dict_path = os.path.join(result_path, "checkpoints", "model_best.pth")
