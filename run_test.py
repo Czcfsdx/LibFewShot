@@ -52,6 +52,8 @@ if __name__ == "__main__":
             config["test_query"] = model_config["test_query"]
             config["test_epoch"] = model_config["test_epoch"]
             config["test_episode"] = model_config["test_episode"]
+            config["episode_size"] = model_config["episode_size"]
+            config["seed"] = model_config["seed"]
 
     if config["n_gpu"] > 1:
         os.environ["CUDA_VISIBLE_DEVICES"] = config["device_ids"]
