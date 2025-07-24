@@ -29,7 +29,7 @@ class FSL_FORSET():
         train_x = train_x.astype(np.float16)
         train_y = train_y.astype(np.float16)
 
-        print('start RF training')
+        print('start RF training ...')
         start = time.time()
         self.classifier = RandomForestRegressor(**self.rf_kwargs)
         self.classifier.fit(train_x, train_y)
@@ -113,7 +113,7 @@ class FSL_FORSET():
                 cur = np.repeat(cur, sample_size, 0)
                 
                 # get same class images' indices
-                same_class_imgs = random.sample(same_class_idxs, k = sample_size)
+                same_class_imgs = random.sample(list(same_class_idxs), k = sample_size)
                 
                 same_class_embs = []
                 for img_i in same_class_imgs:
