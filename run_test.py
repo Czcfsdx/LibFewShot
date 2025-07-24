@@ -31,11 +31,27 @@ def main(rank, config):
 if __name__ == "__main__":
     config = Config(os.path.join(PATH, "config.yaml"), VAR_DICT).get_config_dict()
     if config["ensemble"] and config["ensemble_kwargs"]["name"] == "quickboost":
-        config = Config(os.path.join(
-            config["ensemble_kwargs"]["other"]["pretrain_model_path"],
-            "config.yaml"
-        ), config).get_config_dict()
+        config = Config(
+            os.path.join(
+                config["ensemble_kwargs"]["other"]["pretrain_model_path"], "config.yaml"
+            ),
+            config,
+        ).get_config_dict()
+
         # config["ensemble_kwargs"]["other"]["test_standalone"] = False
+        if not config["ensemble_kwargs"]["other"]["test_standalone"]:
+            # use pretrain model test config to override quickboost test config
+            model_config = Config(
+                os.path.join(
+                    config["ensemble_kwargs"]["other"]["pretrain_model_path"],
+                    "config.yaml",
+                )
+            ).get_config_dict()
+            config["test_shot"] = model_config["test_shot"]
+            config["test_way"] = model_config["test_way"]
+            config["test_query"] = model_config["test_query"]
+            config["test_epoch"] = model_config["test_epoch"]
+            config["test_episode"] = model_config["test_episode"]
 
     if config["n_gpu"] > 1:
         os.environ["CUDA_VISIBLE_DEVICES"] = config["device_ids"]

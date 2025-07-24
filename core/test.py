@@ -44,16 +44,20 @@ class Test(object):
         self.writer = self._init_writer(self.viz_path)
         self.test_meter = self._init_meter()
         print(config)
+        self.quickboost = False
+        self.quickboost_test_standalone = False
         if config["ensemble"] and config["ensemble_kwargs"]["name"] == "quickboost":
+            self.quickboost = True
             self.ensemble_way, self.ensemble_name = self._init_ensemble(config)
             self.state_dict_path = os.path.join(
                 config["ensemble_kwargs"]["other"]["pretrain_model_path"],
                 "checkpoints",
                 "model_best.pth"
             )
+            if self.ensemble_way.test_standalone:
+                self.quickboost_test_standalone = True
             self.model, self.model_type = self._init_model(config)
             self.ensemble_way.emb_func = self.model.emb_func
-            # self.ensemble_way.split_by_episode = self.model.split_by_episode
         else:
             self.model, self.model_type = self._init_model(config)
         self.test_loader = self._init_dataloader(config)
@@ -63,13 +67,9 @@ class Test(object):
         The normal test loop: test and cal the 0.95 mean_confidence_interval.
         """
 
-        self.quickboost = False
-        self.quickboost_test_standalone = False
-        if self.config["ensemble"] and self.ensemble_name == "quickboost":
-            self.quickboost = True
+        if self.quickboost:
             self.ensemble_way.load_model(os.path.join(self.result_path, "checkpoints"))
-            if self.ensemble_way.test_standalone:
-                self.quickboost_test_standalone = True
+            if self.quickboost_test_standalone:
                 print("QuickBoost start testing standalone ...")
             else:
                 print(f"QuickBoost start testing with {self.ensemble_way.pretrain_model_name} ...")
