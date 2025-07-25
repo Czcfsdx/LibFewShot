@@ -346,6 +346,50 @@ class Test(object):
         state_dict = torch.load(self.state_dict_path, map_location="cpu")
         model.load_state_dict(state_dict)
 
+        # 加载检查点
+        checkpoint = torch.load(self.state_dict_path, map_location="cpu")
+
+        # 兼容不同的保存格式
+        if isinstance(checkpoint, dict) and 'params' in checkpoint:
+            # GitHub下载的模型格式：包含'params'键
+            print("检测到GitHub模型格式，从'params'键加载参数")
+            state_dict = checkpoint['params']
+        else:
+            # 原有的直接保存格式
+            print("检测到标准模型格式")
+            state_dict = checkpoint
+
+        # 处理参数名称映射（GitHub模型使用encoder.前缀，本地期望emb_func.前缀）
+        new_state_dict = {}
+        needs_mapping = False
+
+        for key, value in state_dict.items():
+            if key.startswith('encoder.'):
+                # 将encoder.替换为emb_func.
+                new_key = key.replace('encoder.', 'emb_func.')
+                new_state_dict[new_key] = value
+                needs_mapping = True
+            else:
+                new_state_dict[key] = value
+
+        if needs_mapping:
+            print("应用参数名称映射：encoder.* -> emb_func.*")
+            state_dict = new_state_dict
+
+        # 加载模型参数
+        try:
+            model.load_state_dict(state_dict)
+            print("模型参数加载成功")
+        except Exception as e:
+            print(f"严格模式加载失败: {e}")
+            print("尝试非严格模式加载...")
+            missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
+            if missing_keys:
+                print(f"缺少的键: {missing_keys[:5]}{'...' if len(missing_keys) > 5 else ''}")
+            if unexpected_keys:
+                print(f"意外的键: {unexpected_keys[:5]}{'...' if len(unexpected_keys) > 5 else ''}")
+            print("模型参数加载成功（非严格模式）")
+
         if self.distribute:
             # higher order grad of BN in multi gpu will conflict with syncBN
             # FIXME MAML with multi GPU is conflict with syncBN
